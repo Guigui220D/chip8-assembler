@@ -5,31 +5,50 @@ const instr = @import("instructions.zig");
 
 const allocator = std.heap.page_allocator;
 
+const assemblyError = error{unknownPattern};
+
 pub fn main() !void {
-    const line = "JP V0 0xaef";
+    var dir = std.fs.cwd();
+    dir.deleteFile("a.c8") catch {};
 
-    print("Line: '{}'\n", .{line});
+    var out = try dir.createFile("a.c8", .{});
 
-    var tokens = std.mem.tokenize(line, " ");
+    const testProgram = @embedFile("test-programs/blink.asm");
 
-    const pattern = try asmbl.getPattern(tokens, allocator);
-    defer allocator.free(pattern);
+    var bufLen = std.mem.replacementSize(u8, testProgram, "\x0D\x0A", "\n");
 
-    print("Pattern: '{}'\n", .{pattern});
+    var buffer = try allocator.alloc(u8, bufLen);
+    defer allocator.free(buffer);
 
-    var patId = instr.matchPattern(pattern);
+    _ = std.mem.replace(u8, testProgram, "\x0D\x0A", "\n", buffer);
 
-    if (patId != null) {
+    var lines = std.mem.tokenize(buffer[0..], "\n");
+
+    var line = lines.next();
+
+    while (line != null) : (line = lines.next()) {
+        print("Line: '{}'.\n", .{line.?});
+        var tokens = std.mem.tokenize(line.?, " ");
+
+        const pattern = try asmbl.getPattern(tokens, allocator);
+        defer allocator.free(pattern);
+
+        print("Pattern: '{}'\n", .{pattern});
+
+        var patId = instr.matchPattern(pattern);
+
         print("Pattern id: '{}'\n", .{patId.?});
+
+        if (patId == null)
+            return assemblyError.unknownPattern;
 
         const args = try asmbl.extractArgs(tokens, instr.ops[patId.?], allocator);
         defer allocator.free(args);
 
-        print("Arguments: (hex) '{}'.\n", .{args});
-
         const bin: u16 = try asmbl.fmtOpCode(patId.?, args);
 
-        print("Final binary: (hex, probably little endian) 0x{x}.\n", .{bin});
-    } else
-        print("No patterns matched '{}' (line: '{}')\n", .{ line, pattern });
+        _ = try out.write(@bitCast([2]u8, bin)[0..]);
+
+        print("0x{x:0<4}\n", .{bin});
+    }
 }
