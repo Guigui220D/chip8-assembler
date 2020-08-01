@@ -3,7 +3,7 @@ const std = @import("std");
 const expect = std.testing.expect;
 const expectError = std.testing.expectError;
 
-pub const ops = [_][] const u8 {
+pub const ops = [_][]const u8{
     "CLS_",
     "RET_",
     "SYS_P",
@@ -38,10 +38,10 @@ pub const ops = [_][] const u8 {
     "LD_FV",
     "LD_BV",
     "LD_AV",
-    "LD_VA"
+    "LD_VA",
 };
 
-pub const codes = [_][] const u8 {
+pub const codes = [_][]const u8{
     "00e0",
     "00ee",
     "0___",
@@ -76,7 +76,7 @@ pub const codes = [_][] const u8 {
     "f_29",
     "f_33",
     "f_55",
-    "f_65"
+    "f_65",
 };
 
 pub fn matchPattern(pattern: []const u8) ?usize {
@@ -85,34 +85,22 @@ pub fn matchPattern(pattern: []const u8) ?usize {
     checks: for (ops) |op| {
         var i: u8 = 0;
 
-        if (std.mem.len(op) != std.mem.len(pattern))
-        {
+        if (std.mem.len(op) != std.mem.len(pattern)) {
             result += 1;
             continue :checks;
         }
 
         while (i != std.mem.len(op)) {
-            if (op[i] == pattern[i] or (@call(.{ .modifier = .always_inline }, chars.isHexDigit, .{pattern[i]}) and op[i] == 'V')) 
-            { 
+            if (op[i] == pattern[i] or (@call(.{ .modifier = .always_inline }, chars.isHexDigit, .{pattern[i]}) and op[i] == 'V')) {
                 i += 1;
-            }
-            else
-            {
+            } else {
                 result += 1;
                 continue :checks;
-            }  
+            }
         }
 
         return result;
     }
 
     return null;
-}
-
-//matchPattern tests
-test "matchPattern" {
-    expect(matchPattern("SOB") == null);
-    expect(matchPattern("LD_12").? == 10);
-    expect(matchPattern("JP_0P").? == 21);
-    expect(matchPattern("JP_1P") == null);
 }

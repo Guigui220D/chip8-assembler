@@ -7,6 +7,7 @@ Don't take example on this project, this is my first time writing zig and my fir
 ### Todo
  
 - [x] simple assembly
-- [ ] program arguments
+- [x] program arguments
+- [x] labels
 - [ ] assembler directives
 - [ ] better error reporting
