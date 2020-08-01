@@ -43,23 +43,20 @@ fn getPattern(iterator: std.mem.TokenIterator, allocator: *std.mem.Allocator) ![
     }
 
     //args
-
-    var arg = iter.next();
-
-    while (arg != null) : (arg = iter.next()) {
-        const c: u8 = arg.?[0];
-        const arg_len = std.mem.len(arg.?);
+    while (iter.next()) |arg| {
+        const c: u8 = arg[0];
+        const arg_len = std.mem.len(arg);
 
         switch (c) {
             '0' => { //hex values
                 if (arg_len < 3 or arg_len > 5) //hex values should be 1 (nibble), 2 (byte) or 3 (address) characters
                     return lineParseError.argumentError;
-                if (arg.?[1] != 'x')
+                if (arg[1] != 'x')
                     return lineParseError.argumentError; //hex values should start with 0x
 
                 var i: usize = 2;
                 while (i < arg_len) {
-                    if (!@call(.{ .modifier = .always_inline }, chars.isHexDigit, .{arg.?[i]})) //hex values should have lowercase digits
+                    if (!@call(.{ .modifier = .always_inline }, chars.isHexDigit, .{arg[i]})) //hex values should have lowercase digits
                         return lineParseError.argumentError;
                     i += 1;
                 }
@@ -71,10 +68,21 @@ fn getPattern(iterator: std.mem.TokenIterator, allocator: *std.mem.Allocator) ![
                     else => unreachable,
                 };
             },
+            ':' => { //label as an address
+                if (arg_len == 1)
+                    return lineParseError.argumentError;
+                
+                const label_name = arg[1..];
+
+                if (!token.isLabel(label_name))
+                    return lineParseError.argumentError;
+
+                ret[size] = 'P';
+            },
             'V' => { //V0-f registers
                 if (arg_len != 2)
                     return lineParseError.argumentError;
-                const digit: u8 = arg.?[1];
+                const digit: u8 = arg[1];
 
                 if (!@call(.{ .modifier = .always_inline }, chars.isHexDigit, .{digit}))
                     return lineParseError.argumentError; //V register id should be lowercase hex digit
@@ -89,16 +97,16 @@ fn getPattern(iterator: std.mem.TokenIterator, allocator: *std.mem.Allocator) ![
             'D', 'S' => { //Delay and Sound timer register (DT and ST)
                 if (arg_len != 2)
                     return lineParseError.argumentError;
-                if (arg.?[1] != 'T')
+                if (arg[1] != 'T')
                     return lineParseError.argumentError;
                 ret[size] = c;
             },
             '[' => { //[I]
                 if (arg_len != 3)
                     return lineParseError.argumentError;
-                if (arg.?[1] != 'I')
+                if (arg[1] != 'I')
                     return lineParseError.argumentError;
-                if (arg.?[2] != ']')
+                if (arg[2] != ']')
                     return lineParseError.argumentError;
                 ret[size] = 'A';
             },
@@ -145,16 +153,29 @@ fn extractArgs(iterator: std.mem.TokenIterator, model: []const u8, allocator: *s
                 ret[digits] = arg[1];
                 digits += 1;
             },
-            'N', 'O', 'P' => { //Nibble
+            'N', 'O', 'P' => { //numbers
                 if (arg[0] != '0')
-                    unreachable;
+                {
+                    if (arg[0] == ':' and c == 'P') {   //as a label
+                        var label_name = arg[1..];
+                        var addr = labels.getLabelAddress(label_name);
 
-                var i: usize = 2;
+                        if (addr) |address| {
+                            var buf: [3]u8 = undefined;
+                            _ = try std.fmt.bufPrint(buf[0..], "{x:0<3}", .{addr});
+                            for (buf) |d| {
+                                ret[digits] = d;
+                                digits += 1;
+                            }
+                        } else return lineParseError.argumentError;
 
-                while (i < std.mem.len(arg)) {
-                    ret[digits] = arg[i];
-                    digits += 1;
-                    i += 1;
+                    } else unreachable;
+                } else {    //as an hex value
+                    for (arg) |d, i| {
+                        if (i < 2) continue; //ignore 0x
+                        ret[digits] = d;
+                        digits += 1;
+                    }
                 }
             },
             else => {},

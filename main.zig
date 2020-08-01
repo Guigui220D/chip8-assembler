@@ -1,11 +1,12 @@
 const std = @import("std");
-const print = @import("std").debug.print;
 const asmbl = @import("assembler.zig");
 const label = @import("labels.zig");
 
 const allocator = std.heap.page_allocator;
 
 pub fn main() !void {
+    const stdout = std.io.getStdOut().writer();
+
     var dir = std.fs.cwd();
     var args = std.process.args();
     _ = args.skip();
@@ -15,13 +16,13 @@ pub fn main() !void {
     if (args.next(allocator)) |src| {
         source = try src;
     } else {
-        print("You need to specify the file to assemble in the program arguments.\n", .{});
+        try stdout.print("You need to specify the file to assemble in the program arguments.\n", .{});
         return;
     }
     defer allocator.free(source);
 
     //Opening the file
-    print("Opening source file '{}'...\n", .{source});
+    try stdout.print("Opening source file '{}'...\n", .{source});
 
     var src_file: ?std.fs.File = undefined;
 
@@ -35,12 +36,12 @@ pub fn main() !void {
         //File is open, do the thing
         defer source_file.close();
 
-        print("Creating output file '{}'...\n", .{"a.c8"});
+        try stdout.print("Creating output file '{}'...\n", .{"a.c8"});
 
         dir.deleteFile("a.c8") catch {};
         var out = try dir.createFile("a.c8", .{});
 
-        print("Formatting source...\n", .{});
+        try stdout.print("Formatting source...\n", .{});
 
         var loaded_program: []u8 = undefined;
         {
@@ -61,17 +62,17 @@ pub fn main() !void {
         try label.initLabels(allocator);
         defer label.deinit();
 
-        print("Assembly...\n", .{});
+        try stdout.print("Assembly...\n", .{});
 
         var binary = try asmbl.assembleLines(lines, allocator);
         defer allocator.free(binary);
 
         _ = try out.write(binary);
 
-        print("Done!\n", .{});
+        try stdout.print("Done!\n", .{});
 
     } else {
-        print("Source file could not be opened.\n", .{});
+        try stdout.print("Source file could not be opened.\n", .{});
         return;
     }
 }

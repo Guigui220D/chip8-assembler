@@ -1,8 +1,7 @@
 const std = @import("std");
 const chars = @import("chars.zig");
+const token = @import("tokens.zig");
 const hashmap = std.hash_map;
-
-const max_label_length: usize = 16;
 
 const program_begin: u12 = 0x200;
 
@@ -43,19 +42,14 @@ pub fn parseLabels(iterator: std.mem.TokenIterator) !void {
         if (std.mem.len(line) == 1)
             return labellingError.wrongFormat;
 
-        const labelName = line[1..];
+        const label_name = line[1..];
 
-        if (std.mem.len(labelName) > max_label_length)
+        if (!token.isLabel(label_name))
             return labellingError.wrongFormat;
 
-        for (labelName) |c| {
-            if (!@call(.{ .modifier = .always_inline }, chars.isLetter, .{c}))
-                return labellingError.wrongFormat;
-        }
-
-        if (labels.contains(labelName))
+        if (labels.contains(label_name))
             return labellingError.duplicateLabel;
 
-        try labels.put(labelName, address);
+        try labels.put(label_name, address);
     }
 }
