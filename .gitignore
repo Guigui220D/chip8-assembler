@@ -1,6 +1,4 @@
-*.pdb
-*.obj
-*.exe
-*.c8
-
 zig-cache
+NUL
+
+*.c8
